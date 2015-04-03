@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package>
-  <name>pr2_web_dashboard</name>
+  <name>rws_pr2_dashboard</name>
   <version>1.0.0</version>
   <description>Display robot dashboard</description>
 
