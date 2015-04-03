@@ -76,6 +76,7 @@
               var source = img_fg.src = img_fg.src.replace(img_fg.src,"images/ic-runstop-off.svg");
             
               document.getElementById("physical_run_stop_text").textContent="Physical Run Stop: Not Pressed";
+              document.getElementById('run_stop_instructions_text').textContent="Robot is operational. No Run Stops are pressed.";
             }
             else {
               var img_bg = document.getElementById('physical_runstop_background');
@@ -85,6 +86,7 @@
               var source = img_fg.src = img_fg.src.replace(img_fg.src,"images/ic-runstop-on.svg");
 
               document.getElementById("physical_run_stop_text").textContent="Physical Run Stop: Pressed";
+              document.getElementById('run_stop_instructions_text').innerHTML="The Physical Run Stop is pressed. <br> In order to operate the robot, unpress the Run Stop on the back of the robot";
             }
           }
           else {
@@ -104,6 +106,7 @@
             var source = img_fg.src = img_fg.src.replace(img_fg.src,"images/ic-runstop-on.svg");
              
             document.getElementById("physical_run_stop_text").textContent="Physical Run Stop: Status Unavailble, Wireless Run Stop Pressed";
+            document.getElementById('run_stop_instructions_text').innerHTML="The Wireless Run Stop is pressed. <br> In order to operate the robot, press 'Start' on the Wireless Run Stop.";
           }
 
 
@@ -111,10 +114,10 @@
           console.log('Battery: ' + message.power_state.relative_capacity);
           console.log('Charging: ' + message.power_state.AC_present);
           if (message.power_state.AC_present > 0) {
-            document.getElementById("battery_text").textContent="Battery: " + message.power_state.relative_capacity + "%, Plugged In";
+            document.getElementById("battery_text").textContent="Battery: " + message.power_state.relative_capacity + "%, Plugged In.";
           }
           else {
-            document.getElementById("battery_text").textContent="Battery: " + message.power_state.relative_capacity + "%, Not Plugged In";
+            document.getElementById("battery_text").textContent="Battery: " + message.power_state.relative_capacity + "%, Not Plugged In.";
           }
           if ((message.power_state.relative_capacity >= 0) && (message.power_state.relative_capacity < 10)) {
             var img = document.getElementById('battery_foreground');
@@ -181,11 +184,13 @@
               var source = img.src = img.src.replace(img.src,"images/bg-red.svg");
               motor_state = 1;
               document.getElementById("reset_motors_text").textContent="Motor Status: Halted";
+              document.getElementById('motors_instructions_text').innerHTML="Motors are halted. Try clicking the motors icon to reset. <br> If this is not successful, use the Run Stop to stop and start the robot. <br> You may also try the 'robot stop' and 'robot start' commands. <br> As a last resort, power cycle the robot.";
             }
             else {
               var source = img.src = img.src.replace(img.src,"images/bg-green.svg");
               motor_state = 2;
               document.getElementById("reset_motors_text").textContent="Motor Status: Running";
+              document.getElementById('motors_instructions_text').textContent="Motors Running.";
             }
           }
           else {
@@ -193,12 +198,15 @@
             var source = img.src = img.src.replace(img.src,"images/bg-grey.svg");
             motor_state = 0;
             document.getElementById("reset_motors_text").textContent="Motor Status: Unknown";
+            document.getElementById('motors_instructions_text').textContent="No Motor information available.";
           }
 
           // Set Breaker States
           console.log('Left Arm Breaker: ' + message.power_board_state.circuit_state[0]);
           console.log('Base Breaker: ' + message.power_board_state.circuit_state[1]);
           console.log('Right Arm Breaker: ' + message.power_board_state.circuit_state[2]);
+          console.log('Breakers: ' + message.power_board_state.circuit_state);
+          //breaker_names = ["Left Arm Breaker", "Base Breaker", ];
           for (i = 0; i < 3; i++) { 
             //  STATE_NOPOWER, STATE_STANDBY, STATE_PUMPING, STATE_ON, STATE_DISABLED
             var img;
@@ -223,10 +231,12 @@
             else if (message.power_board_state.circuit_state[i] == 1 ) {
                var source = img.src = img.src.replace(img.src,"images/bg-yellow.svg");
                breaker_text_span.textContent = breaker_text_span.textContent.split(":")[0] + ": Standby";
+               document.getElementById('breakers_instructions_text').innerHTML="One or more breakers are not enabled. <br> Please enable the breaker by clicking the icon next to the breaker.";
             }
             else if (message.power_board_state.circuit_state[i] == 2 ) {
                var source = img.src = img.src.replace(img.src,"images/bg-orange.svg");
                breaker_text_span.textContent = breaker_text_span.textContent.split(":")[0] + ": Pumping";
+               document.getElementById('breakers_instructions_text').innerHTML="One or more breakers are not enabled. <br> Please enable the breaker by clicking the icon next to the breaker.";
             }
             else if (message.power_board_state.circuit_state[i] == 3 ) {
                var source = img.src = img.src.replace(img.src,"images/bg-green.svg");
@@ -235,9 +245,15 @@
             else if (message.power_board_state.circuit_state[i] == 4 ) {
                var source = img.src = img.src.replace(img.src,"images/bg-red.svg");
                breaker_text_span.textContent = breaker_text_span.textContent.split(":")[0] + ": Disabled";
+               document.getElementById('breakers_instructions_text').innerHTML="One or more breakers are not enabled. <br> Please enable the breaker by clicking the icon next to the breaker.";
             }
           }
-
+          if (message.power_board_state.circuit_state.equals([3, 3, 3])) {
+             document.getElementById('breakers_instructions_text').textContent="All breakers are on!";
+          }
+          else if (message.power_board_state.circuit_state.equals([0, 0, 0])){
+             document.getElementById('breakers_instructions_text').textContent="No Breaker information available.";
+          }
         });
 
         
@@ -273,8 +289,7 @@
         }
       }
 
-       
-
+      
       function command_breaker_with_callback(breaker_num, callback) {
         var cmd;
         // start, stop, reset, disable, none
@@ -402,6 +417,30 @@
 
       }
 
+      Array.prototype.equals = function (array) {
+        // if the other array is a falsy value, return
+        if (!array)
+            return false;
+
+        // compare lengths - can save a lot of time 
+        if (this.length != array.length)
+            return false;
+
+        for (var i = 0, l=this.length; i < l; i++) {
+            // Check if we have nested arrays
+            if (this[i] instanceof Array && array[i] instanceof Array) {
+                // recurse into the nested arrays
+                if (!this[i].equals(array[i]))
+                    return false;       
+            }           
+            else if (this[i] != array[i]) { 
+            // Warning - two different object instances will never be equal: {x:20} != {x:20}
+                return false;   
+            }           
+       }       
+        return true;
+      }   
+
     </script>
       
     <style>
@@ -410,7 +449,11 @@
   
   <body>
     <h1 class="page-header">Dashboard</h1>
-    
+   
+    <div id='run_stop_instructions' style="position:relative; left:0; top:0;"  >
+      <h4><span id="run_stop_instructions_text">No Run Stop information available.</span></h4>
+    </div>
+ 
     <!-- Wireless run stop icon -->
     <div id='wireless_stop_icon' style="position:relative; left:0; top:0;"  >
       <img id='wireless_runstop_background' src="images/bg-grey.svg" style="position:relative; top:0; left:0;"/>
@@ -425,6 +468,13 @@
       <span id="physical_run_stop_text">Physical Run Stop </span>
     </div>
 
+    <div style="position:relative; left:0; top:0; padding:10px;"  >
+    </div>
+ 
+    <div id='motors_instructions' style="position:relative; left:0; top:0;"  >
+      <h4><span id="motors_instructions_text">No Motor information available.</span></h4>
+    </div>
+ 
     <!-- Reset Motors icon -->
     <div id='motors_icon' style="position:relative; left:0; top:0;" onclick='command_motors()'>
       <img id='motors_background' src="images/bg-grey.svg" style="position:relative; top:0; left:0;"/>
@@ -432,6 +482,13 @@
       <span id="reset_motors_text">Motor Status </span>
     </div>
 
+    <div style="position:relative; left:0; top:0; padding:10px;"  >
+    </div>
+ 
+    <div id='breakers_instructions' style="position:relative; left:0; top:0;"  >
+      <h4><span id="breakers_instructions_text">No Breaker information available.</span></h4>
+    </div>
+ 
     <!-- Left Arm Breaker icon -->
     <div id='l_arm_breaker_icon' style="position:relative; left:0; top:0;" onclick='command_breaker(0)'>
       <img id='l_arm_background' src="images/bg-grey.svg" style="position:relative; top:0; left:0;"/>
@@ -453,10 +510,15 @@
       <span id="right_arm_breaker_text">Right Arm Breaker: No power</span>
     </div>
 
-     <!-- Battery icon -->
+    <div style="position:relative; left:0; top:0; padding:10px;"  >
+    </div>
+     <div id='breakers_instructions' style="position:relative; left:0; top:0;"  >
+      <h4><span id="battery_text">No Breaker information available.</span></h4>
+    </div>
+ 
+    <!-- Battery icon -->
     <div id='battery_icon' style="position:relative; left:0; top:0;" >
-      <img id='battery_foreground' src="images/ic-battery-100.svg" style="position:relative; top:0; left:0;"/>
-      <span id="battery_text">Battery </span>
+      <img id='battery_foreground' src="images/ic-battery-100.svg" style="position:relative; top:0; left:0;" height="50px"/>
     </div>
 
     
