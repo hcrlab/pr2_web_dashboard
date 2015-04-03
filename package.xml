@@ -56,6 +56,6 @@
     <!-- <metapackage/> -->
 
     <!-- Other tools can request additional information be placed here -->
-    <appname>Pr2 Web Dashboard</appname>
+    <appname>Dashboard</appname>
   </export>
 </package>
