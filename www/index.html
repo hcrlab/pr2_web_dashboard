@@ -180,16 +180,19 @@
             if (message.motors_halted.data == true) {
               var source = img.src = img.src.replace(img.src,"images/bg-red.svg");
               motor_state = 1;
+              document.getElementById("reset_motors_text").textContent="Motor Status: Halted";
             }
             else {
               var source = img.src = img.src.replace(img.src,"images/bg-green.svg");
               motor_state = 2;
+              document.getElementById("reset_motors_text").textContent="Motor Status: Running";
             }
           }
           else {
             var img = document.getElementById('motors_background');
             var source = img.src = img.src.replace(img.src,"images/bg-grey.svg");
             motor_state = 0;
+            document.getElementById("reset_motors_text").textContent="Motor Status: Unknown";
           }
 
           // Set Breaker States
@@ -199,30 +202,39 @@
           for (i = 0; i < 3; i++) { 
             //  STATE_NOPOWER, STATE_STANDBY, STATE_PUMPING, STATE_ON, STATE_DISABLED
             var img;
+            var breaker_text_span;
             if (i == 0) {
               img = document.getElementById('l_arm_background');
+              breaker_text_span = document.getElementById('left_arm_breaker_text');
             }
             else if (i == 1){
               img = document.getElementById('base_background');
+              breaker_text_span = document.getElementById('base_breaker_text');
             }
             else if (i == 2){
               img = document.getElementById('r_arm_background');
+              breaker_text_span = document.getElementById('right_arm_breaker_text');
             }
 
             if (message.power_board_state.circuit_state[i] == 0 ) {
                var source = img.src = img.src.replace(img.src,"images/bg-grey.svg");
+               breaker_text_span.textContent = breaker_text_span.textContent.split(":")[0] + ": No power";
             }
             else if (message.power_board_state.circuit_state[i] == 1 ) {
                var source = img.src = img.src.replace(img.src,"images/bg-yellow.svg");
+               breaker_text_span.textContent = breaker_text_span.textContent.split(":")[0] + ": Standby";
             }
             else if (message.power_board_state.circuit_state[i] == 2 ) {
                var source = img.src = img.src.replace(img.src,"images/bg-orange.svg");
+               breaker_text_span.textContent = breaker_text_span.textContent.split(":")[0] + ": Pumping";
             }
             else if (message.power_board_state.circuit_state[i] == 3 ) {
                var source = img.src = img.src.replace(img.src,"images/bg-green.svg");
+               breaker_text_span.textContent = breaker_text_span.textContent.split(":")[0] + ": Enabled";
             }
             else if (message.power_board_state.circuit_state[i] == 4 ) {
                var source = img.src = img.src.replace(img.src,"images/bg-red.svg");
+               breaker_text_span.textContent = breaker_text_span.textContent.split(":")[0] + ": Disabled";
             }
           }
 
@@ -236,19 +248,8 @@
         // var img = document.getElementById('motors_background');
         // var source = img.src;
         // console.log('Motors' + source);
-        if (motor_state == 0){
-          console.log('Reset motors');
-          var resetMotorsClient = new ROSLIB.Service({
-            ros : ros,
-            name : '/pr2_ethercat/reset_motors',
-            serviceType : 'std_srvs/Empty'
-          });
-
-          var request = new ROSLIB.ServiceRequest({});
-
-          resetMotorsClient.callService(request, function() {});
-        }
-        else if (motor_state == 2){
+       
+        if (motor_state == 2){
           console.log('Halt motors');
           var haltMotorsClient = new ROSLIB.Service({
             ros : ros,
@@ -263,18 +264,75 @@
         }
         else {
           console.log('Reset motors');
-          var resetMotorsClient = new ROSLIB.Service({
-            ros : ros,
-            name : '/pr2_ethercat/reset_motors',
-            serviceType : 'std_srvs/Empty'
-          });
 
-          var request = new ROSLIB.ServiceRequest({});
-
-          resetMotorsClient.callService(request, function() {});
-
+          command_breaker_with_callback(0, command_breaker_with_callback);
+          
+          
+          
+          
         }
       }
+
+       
+
+      function command_breaker_with_callback(breaker_num, callback) {
+        var cmd;
+        // start, stop, reset, disable, none
+        
+        cmd = 'reset';
+        var commandBreakersClient = new ROSLIB.Service({
+          ros : ros,
+          name : '/power_board/control',
+          serviceType : 'pr2_power_board/PowerBoardCommand'
+        });
+
+        var request = new ROSLIB.ServiceRequest({
+          serial_number : serial_num,
+          breaker_number : breaker_num,
+          command : cmd
+        });
+
+        commandBreakersClient.callService(request, function(result) {
+          console.log('Result for service call: '
+            + result.retval);
+          cmd = 'start';
+          var newCommandBreakersClient = new ROSLIB.Service({
+            ros : ros,
+            name : '/power_board/control',
+            serviceType : 'pr2_power_board/PowerBoardCommand'
+          });
+
+          var new_request = new ROSLIB.ServiceRequest({
+            serial_number : serial_num,
+            breaker_number : breaker_num,
+            command : cmd
+          });
+
+          newCommandBreakersClient.callService(new_request, function(result) {
+            console.log('Result for service call: '
+            + result.retval);
+            if (breaker_num < 2) {
+              callback(breaker_num + 1, callback);
+            }
+            else {
+              callback(2, function() {
+                var resetMotorsClient = new ROSLIB.Service({
+                  ros : ros,
+                  name : '/pr2_ethercat/reset_motors',
+                  serviceType : 'std_srvs/Empty'
+                });
+
+                var request = new ROSLIB.ServiceRequest({});
+    
+                resetMotorsClient.callService(request, function() {});
+
+              });
+            }
+          });
+
+        });
+      }
+
 
       function command_breaker(breaker_num) {
         var cmd;
@@ -351,7 +409,7 @@
   </head>
   
   <body>
-    <h1 class="page-header">Pr2 Web Dashboard</h1>
+    <h1 class="page-header">Dashboard</h1>
     
     <!-- Wireless run stop icon -->
     <div id='wireless_stop_icon' style="position:relative; left:0; top:0;"  >
@@ -378,21 +436,21 @@
     <div id='l_arm_breaker_icon' style="position:relative; left:0; top:0;" onclick='command_breaker(0)'>
       <img id='l_arm_background' src="images/bg-grey.svg" style="position:relative; top:0; left:0;"/>
       <img id='l_arm_foreground' src="images/ic-larm.svg" style="position:absolute; top:0; left:0;"/>
-      <span id="left_arm_breaker_text">Left Arm Breaker </span>
+      <span id="left_arm_breaker_text">Left Arm Breaker: No power</span>
     </div>
 
     <!-- Base Breaker icon -->
     <div id='base_breaker_icon' style="position:relative; left:0; top:0;" onclick='command_breaker(1)'>
       <img id='base_background' src="images/bg-grey.svg" style="position:relative; top:0; left:0;"/>
       <img id='base_foreground' src="images/ic-base.svg" style="position:absolute; top:0; left:0;"/>
-      <span id="base_breaker_text">Base Breaker </span>
+      <span id="base_breaker_text">Base Breaker: No power</span>
     </div>
 
     <!-- Right Arm Breaker icon -->
     <div id='r_arm_breaker_icon' style="position:relative; left:0; top:0;" onclick='command_breaker(2)'>
       <img id='r_arm_background' src="images/bg-grey.svg" style="position:relative; top:0; left:0;"/>
       <img id='r_arm_foreground' src="images/ic-rarm.svg" style="position:absolute; top:0; left:0;"/>
-      <span id="Right Arm Breaker">Right Arm Breaker </span>
+      <span id="right_arm_breaker_text">Right Arm Breaker: No power</span>
     </div>
 
      <!-- Battery icon -->
