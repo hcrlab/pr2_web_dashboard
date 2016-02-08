@@ -17,246 +17,244 @@
     <script type="text/javascript" src="http://cdn.robotwebtools.org/roslibjs/current/roslib.min.js"></script>
     <script>
       var motor_state = 0;
-      var ros;
-      var ws_url;
       var serial_num; 
       var circuit_state;
+      var ws_url = (function() {
+        var hostname = window.location.hostname;
+        var protocol = 'ws:';
+        if (window.location.protocol == 'https:') {
+          protocol = 'wss:'
+        }
+        return protocol + '//' + hostname + ':9090';
+      })();
+      var ros = new ROSLIB.Ros({
+        url: ws_url
+      });
+      
+      ros.on('connection', function() {
+        console.log('Connected to websocket server.');
+      });
+      
+      ros.on('error', function(error) {
+        console.log('Error connecting to websocket server: ', error);
+      });
+      
+      ros.on('close', function() {
+        console.log('Connection to websocket server closed.');
+      });
 
-      $.get('/get_websocket_url', function(data, status) {
-        ws_url = data;
-        ros = new ROSLIB.Ros({
-          url: ws_url
-        });
-        
-        ros.on('connection', function() {
-          console.log('Connected to websocket server.');
-        });
-        
-        ros.on('error', function(error) {
-          console.log('Error connecting to websocket server: ', error);
-        });
-        
-        ros.on('close', function() {
-          console.log('Connection to websocket server closed.');
-        });
+      var listener = new ROSLIB.Topic({
+        ros : ros,
+        name : '/dashboard_agg',
+        messageType : 'pr2_msgs/DashboardState'
+      });
 
-        
+      listener.subscribe(function(message) {
+        // Get power board serial number
+        serial_num = message.power_board_state.serial_num;
 
-        var listener = new ROSLIB.Topic({
-          ros : ros,
-          name : '/dashboard_agg',
-          messageType : 'pr2_msgs/DashboardState'
-        });
+        // Get circuit_state
+        circuit_state = message.power_board_state.circuit_state;
 
-        listener.subscribe(function(message) {
-          // Get power board serial number
-          serial_num = message.power_board_state.serial_num;
+        // Set Wireless Run Stop State
+        console.log('Wireless run stop: ' + message.power_board_state.wireless_stop);
+        if (message.power_board_state.wireless_stop == true) {
+          var img_bg = document.getElementById('wireless_runstop_background');
+          var source = img_bg.src = img_bg.src.replace(img_bg.src,"images/bg-green.svg");
 
-          // Get circuit_state
-          circuit_state = message.power_board_state.circuit_state;
+          var img_fg = document.getElementById('wireless_runstop_foreground');
+          var source = img_fg.src = img_fg.src.replace(img_fg.src,"images/ic-wireless-runstop-off.svg");
 
-          // Set Wireless Run Stop State
-          console.log('Wireless run stop: ' + message.power_board_state.wireless_stop);
+          document.getElementById("wireless_run_stop_text").textContent="Wireless Run Stop: Not Pressed";
+
+          // Set Physical Run Stop State
+          console.log('Physical run stop: ' + message.power_board_state.run_stop);
           if (message.power_board_state.wireless_stop == true) {
-            var img_bg = document.getElementById('wireless_runstop_background');
+            var img_bg = document.getElementById('physical_runstop_background');
             var source = img_bg.src = img_bg.src.replace(img_bg.src,"images/bg-green.svg");
 
-            var img_fg = document.getElementById('wireless_runstop_foreground');
-            var source = img_fg.src = img_fg.src.replace(img_fg.src,"images/ic-wireless-runstop-off.svg");
-
-            document.getElementById("wireless_run_stop_text").textContent="Wireless Run Stop: Not Pressed";
-
-            // Set Physical Run Stop State
-            console.log('Physical run stop: ' + message.power_board_state.run_stop);
-            if (message.power_board_state.wireless_stop == true) {
-              var img_bg = document.getElementById('physical_runstop_background');
-              var source = img_bg.src = img_bg.src.replace(img_bg.src,"images/bg-green.svg");
-
-              var img_bg = document.getElementById('physical_runstop_foreground');
-              var source = img_fg.src = img_fg.src.replace(img_fg.src,"images/ic-runstop-off.svg");
-            
-              document.getElementById("physical_run_stop_text").textContent="Physical Run Stop: Not Pressed";
-              document.getElementById('run_stop_instructions_text').textContent="Robot is operational. No Run Stops are pressed.";
-            }
-            else {
-              var img_bg = document.getElementById('physical_runstop_background');
-              var source = img_bg.src = img_bg.src.replace(img_bg.src,"images/bg-red.svg");
-
-              var img_fg = document.getElementById('physical_runstop_foreground');
-              var source = img_fg.src = img_fg.src.replace(img_fg.src,"images/ic-runstop-on.svg");
-
-              document.getElementById("physical_run_stop_text").textContent="Physical Run Stop: Pressed";
-              document.getElementById('run_stop_instructions_text').innerHTML="The Physical Run Stop is pressed. <br> In order to operate the robot, unpress the Run Stop on the back of the robot";
-            }
+            var img_bg = document.getElementById('physical_runstop_foreground');
+            var source = img_fg.src = img_fg.src.replace(img_fg.src,"images/ic-runstop-off.svg");
+          
+            document.getElementById("physical_run_stop_text").textContent="Physical Run Stop: Not Pressed";
+            document.getElementById('run_stop_instructions_text').textContent="Robot is operational. No Run Stops are pressed.";
           }
           else {
-            var img_bg = document.getElementById('wireless_runstop_background');
-            var source = img_bg.src = img_bg.src.replace(img_bg.src,"images/bg-red.svg");
-
-            var img_fg = document.getElementById('wireless_runstop_foreground');
-            var source = img_fg.src = img_fg.src.replace(img_fg.src,"images/ic-wireless-runstop-on.svg");
-
-            document.getElementById("wireless_run_stop_text").textContent="Wireless Run Stop: Pressed";
-
-            // Set Physical Run Stop State
             var img_bg = document.getElementById('physical_runstop_background');
-            var source = img_bg.src = img_bg.src.replace(img_bg.src,"images/bg-grey.svg");
+            var source = img_bg.src = img_bg.src.replace(img_bg.src,"images/bg-red.svg");
 
             var img_fg = document.getElementById('physical_runstop_foreground');
             var source = img_fg.src = img_fg.src.replace(img_fg.src,"images/ic-runstop-on.svg");
-             
-            document.getElementById("physical_run_stop_text").textContent="Physical Run Stop: Status Unavailble, Wireless Run Stop Pressed";
-            document.getElementById('run_stop_instructions_text').innerHTML="The Wireless Run Stop is pressed. <br> In order to operate the robot, press 'Start' on the Wireless Run Stop.";
+
+            document.getElementById("physical_run_stop_text").textContent="Physical Run Stop: Pressed";
+            document.getElementById('run_stop_instructions_text').innerHTML="The Physical Run Stop is pressed. <br> In order to operate the robot, unpress the Run Stop on the back of the robot";
           }
+        }
+        else {
+          var img_bg = document.getElementById('wireless_runstop_background');
+          var source = img_bg.src = img_bg.src.replace(img_bg.src,"images/bg-red.svg");
+
+          var img_fg = document.getElementById('wireless_runstop_foreground');
+          var source = img_fg.src = img_fg.src.replace(img_fg.src,"images/ic-wireless-runstop-on.svg");
+
+          document.getElementById("wireless_run_stop_text").textContent="Wireless Run Stop: Pressed";
+
+          // Set Physical Run Stop State
+          var img_bg = document.getElementById('physical_runstop_background');
+          var source = img_bg.src = img_bg.src.replace(img_bg.src,"images/bg-grey.svg");
+
+          var img_fg = document.getElementById('physical_runstop_foreground');
+          var source = img_fg.src = img_fg.src.replace(img_fg.src,"images/ic-runstop-on.svg");
+           
+          document.getElementById("physical_run_stop_text").textContent="Physical Run Stop: Status Unavailble, Wireless Run Stop Pressed";
+          document.getElementById('run_stop_instructions_text').innerHTML="The Wireless Run Stop is pressed. <br> In order to operate the robot, press 'Start' on the Wireless Run Stop.";
+        }
 
 
-          // Set Battery State
-          console.log('Battery: ' + message.power_state.relative_capacity);
-          console.log('Charging: ' + message.power_state.AC_present);
+        // Set Battery State
+        console.log('Battery: ' + message.power_state.relative_capacity);
+        console.log('Charging: ' + message.power_state.AC_present);
+        if (message.power_state.AC_present > 0) {
+          document.getElementById("battery_text").textContent="Battery: " + message.power_state.relative_capacity + "%, Plugged In.";
+        }
+        else {
+          document.getElementById("battery_text").textContent="Battery: " + message.power_state.relative_capacity + "%, Not Plugged In.";
+        }
+        if ((message.power_state.relative_capacity >= 0) && (message.power_state.relative_capacity < 10)) {
+          var img = document.getElementById('battery_foreground');
           if (message.power_state.AC_present > 0) {
-            document.getElementById("battery_text").textContent="Battery: " + message.power_state.relative_capacity + "%, Plugged In.";
+            var source = img.src = img.src.replace(img.src,"images/ic-battery-charge-0.svg");
           }
           else {
-            document.getElementById("battery_text").textContent="Battery: " + message.power_state.relative_capacity + "%, Not Plugged In.";
+            var source = img.src = img.src.replace(img.src,"images/ic-battery-0.svg");
           }
-          if ((message.power_state.relative_capacity >= 0) && (message.power_state.relative_capacity < 10)) {
-            var img = document.getElementById('battery_foreground');
-            if (message.power_state.AC_present > 0) {
-              var source = img.src = img.src.replace(img.src,"images/ic-battery-charge-0.svg");
-            }
-            else {
-              var source = img.src = img.src.replace(img.src,"images/ic-battery-0.svg");
-            }
-          }
-          else if ((message.power_state.relative_capacity >= 10) && (message.power_state.relative_capacity < 30)) {
-            var img = document.getElementById('battery_foreground');
-            if (message.power_state.AC_present > 0) {
-              var source = img.src = img.src.replace(img.src,"images/ic-battery-charge-20.svg");
-            }
-            else {
-              var source = img.src = img.src.replace(img.src,"images/ic-battery-20.svg");
-            }
-          }
-
-          else if ((message.power_state.relative_capacity >= 30) && (message.power_state.relative_capacity < 50)) {
-            var img = document.getElementById('battery_foreground');
-            if (message.power_state.AC_present > 0) {
-              var source = img.src = img.src.replace(img.src,"images/ic-battery-charge-40.svg");
-            }
-            else {
-              var source = img.src = img.src.replace(img.src,"images/ic-battery-40.svg");
-            }
-          }
-          else if ((message.power_state.relative_capacity >= 50) && (message.power_state.relative_capacity < 70)) {
-            var img = document.getElementById('battery_foreground');
-            if (message.power_state.AC_present > 0) {
-              var source = img.src = img.src.replace(img.src,"images/ic-battery-charge-60-green.svg");
-            }
-            else {
-              var source = img.src = img.src.replace(img.src,"images/ic-battery-60-green.svg");
-            }
-          }
-          else if ((message.power_state.relative_capacity >= 70) && (message.power_state.relative_capacity < 90)) {
-            var img = document.getElementById('battery_foreground');
-            if (message.power_state.AC_present > 0) {
-              var source = img.src = img.src.replace(img.src,"images/ic-battery-charge-80-green.svg");
-            }
-            else {
-              var source = img.src = img.src.replace(img.src,"images/ic-battery-80-green.svg");
-            }
-          }
-          else if ((message.power_state.relative_capacity >= 90)) {
-            var img = document.getElementById('battery_foreground');
-            if (message.power_state.AC_present > 0) {
-              var source = img.src = img.src.replace(img.src,"images/ic-battery-charge-100-green.svg");
-            }
-            else {
-              var source = img.src = img.src.replace(img.src,"images/ic-battery-100-green.svg");
-            }
-          }
-
-          // Set Motor State
-          console.log('Motor State Valid: ' + message.motors_halted_valid);
-          console.log('Motor State: ' + message.motors_halted.data);
-          if (message.motors_halted_valid == true) {
-            var img = document.getElementById('motors_background');
-            if (message.motors_halted.data == true) {
-              var source = img.src = img.src.replace(img.src,"images/bg-red.svg");
-              motor_state = 1;
-              document.getElementById("reset_motors_text").textContent="Motor Status: Halted";
-              document.getElementById('motors_instructions_text').innerHTML="Motors are halted. Try clicking the motors icon to reset. <br> If this is not successful, use the Run Stop to stop and start the robot. <br> You may also try the 'robot stop' and 'robot start' commands. <br> As a last resort, power cycle the robot.";
-            }
-            else {
-              var source = img.src = img.src.replace(img.src,"images/bg-green.svg");
-              motor_state = 2;
-              document.getElementById("reset_motors_text").textContent="Motor Status: Running";
-              document.getElementById('motors_instructions_text').textContent="Motors Running.";
-            }
+        }
+        else if ((message.power_state.relative_capacity >= 10) && (message.power_state.relative_capacity < 30)) {
+          var img = document.getElementById('battery_foreground');
+          if (message.power_state.AC_present > 0) {
+            var source = img.src = img.src.replace(img.src,"images/ic-battery-charge-20.svg");
           }
           else {
-            var img = document.getElementById('motors_background');
-            var source = img.src = img.src.replace(img.src,"images/bg-grey.svg");
-            motor_state = 0;
-            document.getElementById("reset_motors_text").textContent="Motor Status: Unknown";
-            document.getElementById('motors_instructions_text').textContent="No Motor information available.";
+            var source = img.src = img.src.replace(img.src,"images/ic-battery-20.svg");
+          }
+        }
+
+        else if ((message.power_state.relative_capacity >= 30) && (message.power_state.relative_capacity < 50)) {
+          var img = document.getElementById('battery_foreground');
+          if (message.power_state.AC_present > 0) {
+            var source = img.src = img.src.replace(img.src,"images/ic-battery-charge-40.svg");
+          }
+          else {
+            var source = img.src = img.src.replace(img.src,"images/ic-battery-40.svg");
+          }
+        }
+        else if ((message.power_state.relative_capacity >= 50) && (message.power_state.relative_capacity < 70)) {
+          var img = document.getElementById('battery_foreground');
+          if (message.power_state.AC_present > 0) {
+            var source = img.src = img.src.replace(img.src,"images/ic-battery-charge-60-green.svg");
+          }
+          else {
+            var source = img.src = img.src.replace(img.src,"images/ic-battery-60-green.svg");
+          }
+        }
+        else if ((message.power_state.relative_capacity >= 70) && (message.power_state.relative_capacity < 90)) {
+          var img = document.getElementById('battery_foreground');
+          if (message.power_state.AC_present > 0) {
+            var source = img.src = img.src.replace(img.src,"images/ic-battery-charge-80-green.svg");
+          }
+          else {
+            var source = img.src = img.src.replace(img.src,"images/ic-battery-80-green.svg");
+          }
+        }
+        else if ((message.power_state.relative_capacity >= 90)) {
+          var img = document.getElementById('battery_foreground');
+          if (message.power_state.AC_present > 0) {
+            var source = img.src = img.src.replace(img.src,"images/ic-battery-charge-100-green.svg");
+          }
+          else {
+            var source = img.src = img.src.replace(img.src,"images/ic-battery-100-green.svg");
+          }
+        }
+
+        // Set Motor State
+        console.log('Motor State Valid: ' + message.motors_halted_valid);
+        console.log('Motor State: ' + message.motors_halted.data);
+        if (message.motors_halted_valid == true) {
+          var img = document.getElementById('motors_background');
+          if (message.motors_halted.data == true) {
+            var source = img.src = img.src.replace(img.src,"images/bg-red.svg");
+            motor_state = 1;
+            document.getElementById("reset_motors_text").textContent="Motor Status: Halted";
+            document.getElementById('motors_instructions_text').innerHTML="Motors are halted. Try clicking the motors icon to reset. <br> If this is not successful, use the Run Stop to stop and start the robot. <br> You may also try the 'robot stop' and 'robot start' commands. <br> As a last resort, power cycle the robot.";
+          }
+          else {
+            var source = img.src = img.src.replace(img.src,"images/bg-green.svg");
+            motor_state = 2;
+            document.getElementById("reset_motors_text").textContent="Motor Status: Running";
+            document.getElementById('motors_instructions_text').textContent="Motors Running.";
+          }
+        }
+        else {
+          var img = document.getElementById('motors_background');
+          var source = img.src = img.src.replace(img.src,"images/bg-grey.svg");
+          motor_state = 0;
+          document.getElementById("reset_motors_text").textContent="Motor Status: Unknown";
+          document.getElementById('motors_instructions_text').textContent="No Motor information available.";
+        }
+
+        // Set Breaker States
+        console.log('Left Arm Breaker: ' + message.power_board_state.circuit_state[0]);
+        console.log('Base Breaker: ' + message.power_board_state.circuit_state[1]);
+        console.log('Right Arm Breaker: ' + message.power_board_state.circuit_state[2]);
+        console.log('Breakers: ' + message.power_board_state.circuit_state);
+        //breaker_names = ["Left Arm Breaker", "Base Breaker", ];
+        for (i = 0; i < 3; i++) { 
+          //  STATE_NOPOWER, STATE_STANDBY, STATE_PUMPING, STATE_ON, STATE_DISABLED
+          var img;
+          var breaker_text_span;
+          if (i == 0) {
+            img = document.getElementById('l_arm_background');
+            breaker_text_span = document.getElementById('left_arm_breaker_text');
+          }
+          else if (i == 1){
+            img = document.getElementById('base_background');
+            breaker_text_span = document.getElementById('base_breaker_text');
+          }
+          else if (i == 2){
+            img = document.getElementById('r_arm_background');
+            breaker_text_span = document.getElementById('right_arm_breaker_text');
           }
 
-          // Set Breaker States
-          console.log('Left Arm Breaker: ' + message.power_board_state.circuit_state[0]);
-          console.log('Base Breaker: ' + message.power_board_state.circuit_state[1]);
-          console.log('Right Arm Breaker: ' + message.power_board_state.circuit_state[2]);
-          console.log('Breakers: ' + message.power_board_state.circuit_state);
-          //breaker_names = ["Left Arm Breaker", "Base Breaker", ];
-          for (i = 0; i < 3; i++) { 
-            //  STATE_NOPOWER, STATE_STANDBY, STATE_PUMPING, STATE_ON, STATE_DISABLED
-            var img;
-            var breaker_text_span;
-            if (i == 0) {
-              img = document.getElementById('l_arm_background');
-              breaker_text_span = document.getElementById('left_arm_breaker_text');
-            }
-            else if (i == 1){
-              img = document.getElementById('base_background');
-              breaker_text_span = document.getElementById('base_breaker_text');
-            }
-            else if (i == 2){
-              img = document.getElementById('r_arm_background');
-              breaker_text_span = document.getElementById('right_arm_breaker_text');
-            }
-
-            if (message.power_board_state.circuit_state[i] == 0 ) {
-               var source = img.src = img.src.replace(img.src,"images/bg-grey.svg");
-               breaker_text_span.textContent = breaker_text_span.textContent.split(":")[0] + ": No power";
-            }
-            else if (message.power_board_state.circuit_state[i] == 1 ) {
-               var source = img.src = img.src.replace(img.src,"images/bg-yellow.svg");
-               breaker_text_span.textContent = breaker_text_span.textContent.split(":")[0] + ": Standby";
-               document.getElementById('breakers_instructions_text').innerHTML="One or more breakers are not enabled. <br> Please enable the breaker by clicking the icon next to the breaker.";
-            }
-            else if (message.power_board_state.circuit_state[i] == 2 ) {
-               var source = img.src = img.src.replace(img.src,"images/bg-orange.svg");
-               breaker_text_span.textContent = breaker_text_span.textContent.split(":")[0] + ": Pumping";
-               document.getElementById('breakers_instructions_text').innerHTML="One or more breakers are not enabled. <br> Please enable the breaker by clicking the icon next to the breaker.";
-            }
-            else if (message.power_board_state.circuit_state[i] == 3 ) {
-               var source = img.src = img.src.replace(img.src,"images/bg-green.svg");
-               breaker_text_span.textContent = breaker_text_span.textContent.split(":")[0] + ": Enabled";
-            }
-            else if (message.power_board_state.circuit_state[i] == 4 ) {
-               var source = img.src = img.src.replace(img.src,"images/bg-red.svg");
-               breaker_text_span.textContent = breaker_text_span.textContent.split(":")[0] + ": Disabled";
-               document.getElementById('breakers_instructions_text').innerHTML="One or more breakers are not enabled. <br> Please enable the breaker by clicking the icon next to the breaker.";
-            }
+          if (message.power_board_state.circuit_state[i] == 0 ) {
+             var source = img.src = img.src.replace(img.src,"images/bg-grey.svg");
+             breaker_text_span.textContent = breaker_text_span.textContent.split(":")[0] + ": No power";
           }
-          if (message.power_board_state.circuit_state.equals([3, 3, 3])) {
-             document.getElementById('breakers_instructions_text').textContent="All breakers are on!";
+          else if (message.power_board_state.circuit_state[i] == 1 ) {
+             var source = img.src = img.src.replace(img.src,"images/bg-yellow.svg");
+             breaker_text_span.textContent = breaker_text_span.textContent.split(":")[0] + ": Standby";
+             document.getElementById('breakers_instructions_text').innerHTML="One or more breakers are not enabled. <br> Please enable the breaker by clicking the icon next to the breaker.";
           }
-          else if (message.power_board_state.circuit_state.equals([0, 0, 0])){
-             document.getElementById('breakers_instructions_text').textContent="No Breaker information available.";
+          else if (message.power_board_state.circuit_state[i] == 2 ) {
+             var source = img.src = img.src.replace(img.src,"images/bg-orange.svg");
+             breaker_text_span.textContent = breaker_text_span.textContent.split(":")[0] + ": Pumping";
+             document.getElementById('breakers_instructions_text').innerHTML="One or more breakers are not enabled. <br> Please enable the breaker by clicking the icon next to the breaker.";
           }
-        });
-
-        
+          else if (message.power_board_state.circuit_state[i] == 3 ) {
+             var source = img.src = img.src.replace(img.src,"images/bg-green.svg");
+             breaker_text_span.textContent = breaker_text_span.textContent.split(":")[0] + ": Enabled";
+          }
+          else if (message.power_board_state.circuit_state[i] == 4 ) {
+             var source = img.src = img.src.replace(img.src,"images/bg-red.svg");
+             breaker_text_span.textContent = breaker_text_span.textContent.split(":")[0] + ": Disabled";
+             document.getElementById('breakers_instructions_text').innerHTML="One or more breakers are not enabled. <br> Please enable the breaker by clicking the icon next to the breaker.";
+          }
+        }
+        if (message.power_board_state.circuit_state.equals([3, 3, 3])) {
+           document.getElementById('breakers_instructions_text').textContent="All breakers are on!";
+        }
+        else if (message.power_board_state.circuit_state.equals([0, 0, 0])){
+           document.getElementById('breakers_instructions_text').textContent="No Breaker information available.";
+        }
       });
       
       function command_motors() {
